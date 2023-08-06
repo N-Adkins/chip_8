@@ -16,11 +16,12 @@ pub struct Cpu {
     rng: rand::rngs::ThreadRng,
     memory: Memory,
     stack: Stack,
-    renderer: Renderer,
+    pub renderer: Renderer,
     registers: [u8; 16],
 }
 
 impl Cpu {
+
     pub fn new() -> Cpu {
         Cpu {
             pc: 0x200,
@@ -78,6 +79,7 @@ impl Cpu {
             0xA000 => self.op_ld_i_addr(&instruction),
             0xB000 => self.op_jp_v0_addr(&instruction),
             0xC000 => self.op_rnd_vx_byte(&instruction),
+            0xD000 => self.op_drw_vx_vy_n(&instruction),
             _ => panic!("Unhandled instruction: {:#06X?}", instruction.raw),
         }
     }
@@ -150,8 +152,10 @@ impl Cpu {
     fn op_add_vx_vy(&mut self, instruction: &Instruction) {
         let register_x = self.registers[instruction.x()];
         let register_y = self.registers[instruction.y()];
-        let result = register_x.wrapping_add(register_y);
-        self.registers[0xF] = (result < register_x + register_y) as u8;
+        let register_x_u16 = register_x as u16;
+        let register_y_u16 = register_y as u16;
+        let result = register_x.wrapping_add(register_y);                   
+        self.registers[0xF] = ((result as u16) < register_x_u16 + register_y_u16) as u8;
         self.registers[instruction.x()] = result;
     }
 
@@ -199,4 +203,53 @@ impl Cpu {
         self.registers[instruction.x()] = self.rng.gen_range(0..255) & instruction.kk();
     }
 
+    fn op_drw_vx_vy_n(&mut self, instruction: &Instruction) {
+        
+        let coord_x = self.registers[instruction.x()] as u16;
+        let coord_y = self.registers[instruction.y()] as u16;
+        let height = instruction.n();
+
+        self.registers[0xF] = 0;
+        
+        /*for n in 0..instruction.n() {
+            let row = self.i + n;
+            for i in 0..8 {
+                if coord_x == 63 { break }
+                let sprite_pixel_on = ((row >> i) & 0x1) == 0x1;
+                let index = (coord_y * 64 + coord_x) as usize;
+                if sprite_pixel_on && self.renderer.display[index] == 0x1 {
+                    self.renderer.display[index] = 0;
+                    self.registers[0xF] = 1;
+                } else if sprite_pixel_on {
+                    self.renderer.display[index] = 255; 
+                }
+                coord_x += 1;
+            }
+            coord_y += 1;
+        }*/
+
+        for yline in 0..height {
+
+            let pixel = self.memory.read_u8(self.i + yline);
+
+            for xline in 0..8 {
+
+                if pixel & (0x80 >> xline) != 0 {
+                    
+                    if self.renderer.display[(coord_x + xline + (coord_y + yline) * 64) as usize] > 0 {
+                         self.registers[0xF] = 1;
+                    }
+
+                    self.renderer.display[(coord_x + xline + (coord_y + yline) * 64) as usize] ^= 255;
+
+                }
+
+            }
+
+        }
+
+        self.renderer.update_texture();
+
+    }
+    
 }
