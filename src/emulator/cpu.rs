@@ -12,6 +12,7 @@ use rand::Rng;
 
 pub struct Cpu {
     pc: u16,
+    pub dt: u8,
     i: u16,
     rng: rand::rngs::ThreadRng,
     memory: Memory,
@@ -25,6 +26,7 @@ impl Cpu {
     pub fn new() -> Cpu {
         Cpu {
             pc: 0x200,
+            dt: 0,
             i: 0,
             rng: rand::thread_rng(),
             memory: Memory::new(),
@@ -80,6 +82,22 @@ impl Cpu {
             0xB000 => self.op_jp_v0_addr(&instruction),
             0xC000 => self.op_rnd_vx_byte(&instruction),
             0xD000 => self.op_drw_vx_vy_n(&instruction),
+            0xE000 => match instruction.raw & 0x00FF {
+                0x9E => self.op_skp_vx(&instruction),
+                0xA1 => self.op_sknp_vx(&instruction),
+                _ => panic!("Unhandled instruction: {:#06X?}", instruction.raw),
+            }
+            0xF000 => match instruction.raw & 0x00FF {
+                0x07 => self.op_ld_vx_dt(&instruction),
+                0x15 => self.op_ld_dt_vx(&instruction),
+                0x18 => self.op_ld_st_vx(&instruction),
+                0x1E => self.op_add_i_vx(&instruction),
+                0x29 => self.op_ld_f_vx(&instruction),
+                0x33 => self.op_ld_b_vx(&instruction),
+                0x55 => self.op_ld_i_vx(&instruction),
+                0x65 => self.op_ld_vx_i(&instruction),
+                _ => panic!("Unhandled instruction: {:#06X?}", instruction.raw),
+            }
             _ => panic!("Unhandled instruction: {:#06X?}", instruction.raw),
         }
     }
@@ -211,23 +229,6 @@ impl Cpu {
 
         self.registers[0xF] = 0;
         
-        /*for n in 0..instruction.n() {
-            let row = self.i + n;
-            for i in 0..8 {
-                if coord_x == 63 { break }
-                let sprite_pixel_on = ((row >> i) & 0x1) == 0x1;
-                let index = (coord_y * 64 + coord_x) as usize;
-                if sprite_pixel_on && self.renderer.display[index] == 0x1 {
-                    self.renderer.display[index] = 0;
-                    self.registers[0xF] = 1;
-                } else if sprite_pixel_on {
-                    self.renderer.display[index] = 255; 
-                }
-                coord_x += 1;
-            }
-            coord_y += 1;
-        }*/
-
         for yline in 0..height {
 
             let pixel = self.memory.read_u8(self.i + yline);
@@ -236,11 +237,15 @@ impl Cpu {
 
                 if pixel & (0x80 >> xline) != 0 {
                     
-                    if self.renderer.display[(coord_x + xline + (coord_y + yline) * 64) as usize] > 0 {
+                    let index = (coord_x + xline + (coord_y + yline) * 64) as usize;
+
+                    if index > 2047 { continue; }
+
+                    if self.renderer.display[index] > 0 {
                          self.registers[0xF] = 1;
                     }
 
-                    self.renderer.display[(coord_x + xline + (coord_y + yline) * 64) as usize] ^= 255;
+                    self.renderer.display[index] ^= 255;
 
                 }
 
@@ -250,6 +255,61 @@ impl Cpu {
 
         self.renderer.update_texture();
 
+    }
+
+    fn op_skp_vx(&mut self, instruction: &Instruction) {
+        if self.renderer.keys[self.registers[instruction.x()] as usize] == 1 {
+            self.pc += 2; 
+        }
+    }
+
+    fn op_sknp_vx(&mut self, instruction: &Instruction) {
+        if self.renderer.keys[self.registers[instruction.x()] as usize] == 0 {
+            self.pc += 2;
+        }
+    }
+
+    fn op_ld_vx_dt(&mut self, instruction: &Instruction) {
+        self.registers[instruction.x()] = self.dt;
+    }
+
+    fn op_ld_dt_vx(&mut self, instruction: &Instruction) {
+        self.dt = self.registers[instruction.x()];
+    }
+
+    fn op_ld_i_vx(&mut self, instruction: &Instruction) {
+        for register in 0..instruction.x() {
+            self.memory.set_u8(self.i + register as u16, self.registers[register]);
+        }
+    }
+
+    fn op_ld_vx_i(&mut self, instruction: &Instruction) {
+        for register in 0..instruction.x() {
+            self.registers[register] = self.memory.read_u8(self.i + register as u16);
+        }
+    }
+
+    fn op_ld_st_vx(&mut self, instruction: &Instruction) {
+        println!("Sound instruction, ignoring");
+    }
+
+    fn op_add_i_vx(&mut self, instruction: &Instruction) {
+        self.i += self.registers[instruction.x()] as u16;
+    }
+
+    fn op_ld_f_vx(&mut self, instruction: &Instruction) {
+        self.i = (0x50 + self.registers[instruction.x()] * 5) as u16;
+    }
+
+    fn op_ld_b_vx(&mut self, instruction: &Instruction) {
+        let mut register = self.registers[instruction.x()];
+        let ones: u8 = register % 10;
+        register = register / 10;
+        let tens: u8 = register / 10;
+        let hundreds: u8 = register % 10;
+        self.memory.set_u8(self.i, hundreds);
+        self.memory.set_u8(self.i + 1, tens);
+        self.memory.set_u8(self.i + 2, ones);
     }
     
 }

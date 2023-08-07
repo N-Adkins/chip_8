@@ -46,6 +46,10 @@ impl Memory {
         ((self.data[address as usize] as u16) << 8) | (self.data[(address + 1) as usize]) as u16
     }
 
+    pub fn set_u8(&mut self, address: u16, value: u8) {
+        self.data[address as usize] = value;
+    }
+
     pub fn load_rom(&mut self, data: &Vec<u8>) {
         if 0x200 + data.len() <= 0xFFF {
             self.data[0x200..(0x200 + data.len())].copy_from_slice(&data);

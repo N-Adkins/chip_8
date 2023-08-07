@@ -2,6 +2,7 @@ extern crate sdl2;
 extern crate gl;
 
 use gl::types::*;
+use sdl2::keyboard::Keycode;
 
 fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 
@@ -107,6 +108,7 @@ pub struct Renderer {
     pub gl_shader: GLuint,
     pub gl_texture_uniform_location: GLint,
     pub display: [u8; 64 * 32],
+    pub keys: [u8; 0x10],
 }
 
 impl Renderer {
@@ -129,6 +131,7 @@ impl Renderer {
 
         let gl_context = sdl_window.gl_create_context().unwrap();
         let _gl = gl::load_with(|s| sdl_video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void);
+        sdl_video_subsystem.gl_set_swap_interval(0).unwrap();
 
         let sdl_event_pump = sdl_context.event_pump().unwrap();
 
@@ -224,6 +227,7 @@ impl Renderer {
             gl_shader,
             gl_texture_uniform_location,
             display,
+            keys: [0; 0x10],
         }
 
     }
@@ -240,12 +244,56 @@ impl Renderer {
 
     pub fn poll(&mut self) {
         
-       for event in self.sdl_event_pump.poll_iter() {
-           match event {
-               sdl2::event::Event::Quit {..} => panic!("Quitting"),
-               _ => {},
-           }
-       } 
+        for event in self.sdl_event_pump.poll_iter() {
+            match event {
+                sdl2::event::Event::Quit {..} => panic!("Quitting"),
+                sdl2::event::Event::KeyDown { keycode: Some(key), repeat, .. } => {
+                    if repeat { continue; }
+                    match key {
+                        Keycode::Num1 => self.keys[0x1] = 1,
+                        Keycode::Num2 => self.keys[0x2] = 1,
+                        Keycode::Num3 => self.keys[0x3] = 1,
+                        Keycode::Num4 => self.keys[0xC] = 1,
+                        Keycode::Q => self.keys[0x4] = 1,
+                        Keycode::W => self.keys[0x5] = 1,
+                        Keycode::E => self.keys[0x6] = 1,
+                        Keycode::R => self.keys[0xD] = 1,
+                        Keycode::A => self.keys[0x7] = 1,
+                        Keycode::S => self.keys[0x8] = 1,
+                        Keycode::D => self.keys[0x9] = 1,
+                        Keycode::F => self.keys[0xE] = 1,
+                        Keycode::Z => self.keys[0xA] = 1,
+                        Keycode::X => self.keys[0x0] = 1,
+                        Keycode::C => self.keys[0xB] = 1,
+                        Keycode::V => self.keys[0xF] = 1,
+                        _ => (),
+                    }
+                },
+                sdl2::event::Event::KeyUp { keycode: Some(key), repeat, .. } => {
+                    if repeat { continue; }
+                    match key {
+                        Keycode::Num1 => self.keys[0x1] = 0,
+                        Keycode::Num2 => self.keys[0x2] = 0,
+                        Keycode::Num3 => self.keys[0x3] = 0,
+                        Keycode::Num4 => self.keys[0xC] = 0,
+                        Keycode::Q => self.keys[0x4] = 0,
+                        Keycode::W => self.keys[0x5] = 0,
+                        Keycode::E => self.keys[0x6] = 0,
+                        Keycode::R => self.keys[0xD] = 0,
+                        Keycode::A => self.keys[0x7] = 0,
+                        Keycode::S => self.keys[0x8] = 0,
+                        Keycode::D => self.keys[0x9] = 0,
+                        Keycode::F => self.keys[0xE] = 0,
+                        Keycode::Z => self.keys[0xA] = 0,
+                        Keycode::X => self.keys[0x0] = 0,
+                        Keycode::C => self.keys[0xB] = 0,
+                        Keycode::V => self.keys[0xF] = 0,
+                        _ => (),
+                    }
+                }
+                _ => (),
+            }
+        } 
 
     }
 
