@@ -51,7 +51,7 @@ impl Cpu {
     }
 
     pub fn execute_instruction(&mut self, instruction: &Instruction) {
-        println!("Executing instruction: {:#06X?}", instruction.raw);
+        //println!("Executing instruction: {:#06X?}", instruction.raw);
         match instruction.raw & 0xF000 {
             0x0000 => match instruction.raw {
                 0x00E0 => self.op_cls(),
@@ -289,7 +289,7 @@ impl Cpu {
         }
     }
 
-    fn op_ld_st_vx(&mut self, instruction: &Instruction) {
+    fn op_ld_st_vx(&mut self, _instruction: &Instruction) {
         println!("Sound instruction, ignoring");
     }
 
