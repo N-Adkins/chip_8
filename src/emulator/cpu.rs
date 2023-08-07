@@ -3,7 +3,6 @@ use super::memory::Memory;
 use super::stack::Stack;
 use super::renderer::Renderer;
 
-use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 

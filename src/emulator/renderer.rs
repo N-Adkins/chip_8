@@ -246,7 +246,7 @@ impl Renderer {
         
         for event in self.sdl_event_pump.poll_iter() {
             match event {
-                sdl2::event::Event::Quit {..} => panic!("Quitting"),
+                sdl2::event::Event::Quit {..} => std::process::exit(0),
                 sdl2::event::Event::KeyDown { keycode: Some(key), repeat, .. } => {
                     if repeat { continue; }
                     match key {
