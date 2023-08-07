@@ -3,6 +3,7 @@ extern crate gl;
 
 use gl::types::*;
 use sdl2::keyboard::Keycode;
+use super::audio::Audio;
 
 fn compile_shader(source: &str, shader_type: GLenum) -> GLuint {
 
@@ -107,6 +108,7 @@ pub struct Renderer {
     pub gl_vao: GLuint,
     pub gl_shader: GLuint,
     pub gl_texture_uniform_location: GLint,
+    pub audio: Audio,
     pub display: [u8; 64 * 32],
     pub keys: [u8; 0x10],
 }
@@ -118,6 +120,8 @@ impl Renderer {
         let sdl_context = sdl2::init().unwrap();
         let sdl_video_subsystem = sdl_context.video().unwrap();
         
+        let audio = Audio::new(&sdl_context, 44100, 512);
+
         let gl_attr = sdl_video_subsystem.gl_attr();
         gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
         gl_attr.set_context_version(3, 3);
@@ -215,6 +219,8 @@ impl Renderer {
             gl_texture_uniform_location = gl::GetUniformLocation(gl_shader, "textureSampler\0".as_ptr() as *const i8);
             gl::UseProgram(0);
         }
+
+        audio.device.resume();
         
         Renderer {
             sdl_context,
@@ -226,6 +232,7 @@ impl Renderer {
             gl_vao,
             gl_shader,
             gl_texture_uniform_location,
+            audio,
             display,
             keys: [0; 0x10],
         }

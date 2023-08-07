@@ -12,6 +12,7 @@ use rand::Rng;
 pub struct Cpu {
     pc: u16,
     pub dt: u8,
+    pub st: u8,
     i: u16,
     rng: rand::rngs::ThreadRng,
     memory: Memory,
@@ -26,6 +27,7 @@ impl Cpu {
         Cpu {
             pc: 0x200,
             dt: 0,
+            st: 0,
             i: 0,
             rng: rand::thread_rng(),
             memory: Memory::new(),
@@ -275,6 +277,10 @@ impl Cpu {
         self.dt = self.registers[instruction.x()];
     }
 
+    fn op_ld_st_vx(&mut self, instruction: &Instruction) {
+        self.st = self.registers[instruction.x()];
+    }
+
     fn op_ld_i_vx(&mut self, instruction: &Instruction) {
         for register in 0..instruction.x() {
             self.memory.set_u8(self.i + register as u16, self.registers[register]);
@@ -285,10 +291,6 @@ impl Cpu {
         for register in 0..instruction.x() {
             self.registers[register] = self.memory.read_u8(self.i + register as u16);
         }
-    }
-
-    fn op_ld_st_vx(&mut self, _instruction: &Instruction) {
-        println!("Sound instruction, ignoring");
     }
 
     fn op_add_i_vx(&mut self, instruction: &Instruction) {
