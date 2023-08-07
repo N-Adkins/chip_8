@@ -4,7 +4,6 @@ use sdl2::audio::AudioSpecDesired;
 use sdl2::audio::AudioDevice;
 
 pub struct Audio {
-    want: AudioSpecDesired,
     pub device: AudioDevice<SquareWave>,
 }
 
@@ -29,7 +28,6 @@ impl Audio {
         }).unwrap();
         
         Audio {
-            want,
             device,
         }
 
