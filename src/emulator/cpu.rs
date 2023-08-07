@@ -36,12 +36,11 @@ impl Cpu {
         }
     }
 
-    pub fn load_rom(&mut self, path: &str) -> io::Result<()> {
-        let mut file = File::open(path)?;
+    pub fn load_rom(&mut self, path: &str) {
+        let mut file = File::open(path).unwrap();
         let mut buffer: Vec<u8> = Vec::new();
-        file.read_to_end(&mut buffer)?;
+        file.read_to_end(&mut buffer).unwrap();
         self.memory.load_rom(&buffer);
-        Ok(())
     }
 
     pub fn decode_next_instruction(&mut self) {

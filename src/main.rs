@@ -2,14 +2,14 @@
 
 mod emulator;
 
-fn main() -> Result<(), std::io::Error> {
+fn main() {
     let mut cpu = emulator::Cpu::new();
-    cpu.load_rom("roms/breakout.rom")?;
+    cpu.load_rom("roms/ibm.ch8");
     loop {
         cpu.decode_next_instruction();
         if cpu.dt > 0 { cpu.dt -= 1; }
         cpu.renderer.poll();
         cpu.renderer.render();
-        ::std::thread::sleep(std::time::Duration::from_micros(2500));
+        ::std::thread::sleep(std::time::Duration::from_micros(1000));
     }
 }
