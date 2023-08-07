@@ -15,6 +15,10 @@ fn main() {
 
     loop {
 
+        cpu.renderer.poll();
+
+        cpu.renderer.render();
+
         if cpu.dt > 0 { cpu.dt -= 1; }
         if cpu.st > 0 { 
             cpu.renderer.audio.device.resume(); 
@@ -26,9 +30,8 @@ fn main() {
         for _ in 0..16 {
             cpu.decode_next_instruction();
         }
-                
-        cpu.renderer.poll();
-        cpu.renderer.render();
+
+        cpu.renderer.update_texture();
 
         ::std::thread::sleep(std::time::Duration::from_millis(17))
 

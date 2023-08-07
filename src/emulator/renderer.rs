@@ -111,6 +111,7 @@ pub struct Renderer {
     pub audio: Audio,
     pub display: [u8; 64 * 32],
     pub keys: [u8; 0x10],
+    pub last_keys: [u8; 0x10],
 }
 
 impl Renderer {
@@ -234,6 +235,7 @@ impl Renderer {
             gl_texture_uniform_location,
             audio,
             display,
+            last_keys: [0; 0x10],
             keys: [0; 0x10],
         }
 
@@ -251,6 +253,8 @@ impl Renderer {
 
     pub fn poll(&mut self) {
         
+        self.last_keys = self.keys;
+
         for event in self.sdl_event_pump.poll_iter() {
             match event {
                 sdl2::event::Event::Quit {..} => std::process::exit(0),

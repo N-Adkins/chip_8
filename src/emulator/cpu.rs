@@ -9,12 +9,21 @@ use std::fs::File;
 extern crate rand;
 use rand::Rng;
 
+pub struct Pause {
+    active: bool,
+    down: bool,
+    down_key: u8,
+    released: bool,
+    register: usize,
+}
+
 pub struct Cpu {
     pc: u16,
     pub dt: u8,
     pub st: u8,
     i: u16,
     rng: rand::rngs::ThreadRng,
+    pause: Pause,
     memory: Memory,
     stack: Stack,
     pub renderer: Renderer,
@@ -29,6 +38,7 @@ impl Cpu {
             dt: 0,
             st: 0,
             i: 0,
+            pause: Pause { active: false, down: false, down_key: 0, released: false, register: 0, },
             rng: rand::thread_rng(),
             memory: Memory::new(),
             stack: Stack::new(),
@@ -45,14 +55,30 @@ impl Cpu {
     }
 
     pub fn decode_next_instruction(&mut self) {
+        
+        if self.pause.active {
+            if !self.pause.down {
+                if self.renderer.last_keys != self.renderer.keys {
+                    self.op_ld_vx_k_down();
+                }
+            } else if !self.pause.released {
+                if self.renderer.last_keys != self.renderer.keys {
+                    self.op_ld_vx_k_released();
+                }
+            }
+            return;
+        }
+
         let opcode = self.memory.read_u16(self.pc);
         self.pc += 2;
         self.execute_instruction(&Instruction::new(opcode));
+    
     }
 
     pub fn execute_instruction(&mut self, instruction: &Instruction) {
         //println!("Executing instruction: {:#06X?}", instruction.raw);
-        match instruction.raw & 0xF000 {
+        
+                match instruction.raw & 0xF000 {
             0x0000 => match instruction.raw {
                 0x00E0 => self.op_cls(),
                 0x00EE => self.op_ret(),
@@ -89,6 +115,7 @@ impl Cpu {
             }
             0xF000 => match instruction.raw & 0x00FF {
                 0x07 => self.op_ld_vx_dt(&instruction),
+                0x0A => self.op_ld_vx_k(&instruction),
                 0x15 => self.op_ld_dt_vx(&instruction),
                 0x18 => self.op_ld_st_vx(&instruction),
                 0x1E => self.op_add_i_vx(&instruction),
@@ -155,16 +182,19 @@ impl Cpu {
     fn op_or_vx_vy(&mut self, instruction: &Instruction) {
         let result = self.registers[instruction.x()] | self.registers[instruction.y()];
         self.registers[instruction.x()] = result;
+        self.registers[0xF] = 0;
     }
 
     fn op_and_vx_vy(&mut self, instruction: &Instruction) {
         let result = self.registers[instruction.x()] & self.registers[instruction.y()];
         self.registers[instruction.x()] = result;
+        self.registers[0xF] = 0;
     }
 
     fn op_xor_vx_vy(&mut self, instruction: &Instruction) {
         let result = self.registers[instruction.x()] ^ self.registers[instruction.y()];
         self.registers[instruction.x()] = result;
+        self.registers[0xF] = 0;
     }
 
     fn op_add_vx_vy(&mut self, instruction: &Instruction) {
@@ -173,34 +203,36 @@ impl Cpu {
         let register_x_u16 = register_x as u16;
         let register_y_u16 = register_y as u16;
         let result = register_x.wrapping_add(register_y);                   
-        self.registers[0xF] = ((result as u16) < register_x_u16 + register_y_u16) as u8;
         self.registers[instruction.x()] = result;
+        self.registers[0xF] = ((result as u16) < register_x_u16 + register_y_u16) as u8;
     }
 
     fn op_sub_vx_vy(&mut self, instruction: &Instruction) {
         let register_x = self.registers[instruction.x()];
         let register_y = self.registers[instruction.y()];
-        self.registers[0xF] = (register_x > register_y) as u8;
         self.registers[instruction.x()] = register_x.wrapping_sub(register_y);
+        self.registers[0xF] = (register_x > register_y) as u8;
     }
 
     fn op_shr_vx_vy(&mut self, instruction: &Instruction) {
         let register_x = self.registers[instruction.x()];
+        self.registers[instruction.x()] = self.registers[instruction.y()];
+        self.registers[instruction.x()] >>= 1;
         self.registers[0xF] = register_x & 0x1;
-        self.registers[instruction.x()] = register_x.wrapping_div(2);
     }
 
     fn op_subn_vx_vy(&mut self, instruction: &Instruction) {
         let register_x = self.registers[instruction.x()];
         let register_y = self.registers[instruction.y()];
-        self.registers[0xF] = (register_y > register_x) as u8;
         self.registers[instruction.x()] = register_y.wrapping_sub(register_x);
+        self.registers[0xF] = (register_y > register_x) as u8;
     }
 
     fn op_shl_vx_vy(&mut self, instruction: &Instruction) {
         let register_x = self.registers[instruction.x()];
+        self.registers[instruction.x()] = self.registers[instruction.y()];
+        self.registers[instruction.x()] <<= 1;
         self.registers[0xF] = (register_x & 0x80) >> 7;
-        self.registers[instruction.x()] = register_x.wrapping_mul(2);
     }
     
     fn op_sne_vx_vy(&mut self, instruction: &Instruction) {
@@ -236,8 +268,10 @@ impl Cpu {
             for xline in 0..8 {
 
                 if pixel & (0x80 >> xline) != 0 {
+
+                    let x = (coord_x + xline) % 64;
                     
-                    let index = (coord_x + xline + (coord_y + yline) * 64) as usize;
+                    let index = (x + (coord_y + yline) * 64) as usize;
 
                     if index > 2047 { continue; }
 
@@ -252,8 +286,6 @@ impl Cpu {
             }
 
         }
-
-        self.renderer.update_texture();
 
     }
 
@@ -273,25 +305,35 @@ impl Cpu {
         self.registers[instruction.x()] = self.dt;
     }
 
+    fn op_ld_vx_k(&mut self, instruction: &Instruction) {
+        self.pause.active = true;
+        self.pause.register = instruction.x();
+    }
+
+    fn op_ld_vx_k_down(&mut self) {
+        for i in 0..self.renderer.keys.len() {
+            if (self.renderer.last_keys[i] == 0) && (self.renderer.keys[i] == 1) {
+                self.registers[self.pause.register] = i as u8;
+                self.pause.down_key = i as u8;
+                self.pause.down = true;
+                return;
+            }
+        }
+    }
+
+    fn op_ld_vx_k_released(&mut self) {
+        if self.renderer.keys[self.pause.down_key as usize] == 0 {
+            self.pause = Pause { active: false, down: false, down_key: 0, released: false, register: 0, }
+        }
+    }
+
     fn op_ld_dt_vx(&mut self, instruction: &Instruction) {
         self.dt = self.registers[instruction.x()];
     }
 
     fn op_ld_st_vx(&mut self, instruction: &Instruction) {
         self.st = self.registers[instruction.x()];
-    }
-
-    fn op_ld_i_vx(&mut self, instruction: &Instruction) {
-        for register in 0..instruction.x() {
-            self.memory.set_u8(self.i + register as u16, self.registers[register]);
-        }
-    }
-
-    fn op_ld_vx_i(&mut self, instruction: &Instruction) {
-        for register in 0..instruction.x() {
-            self.registers[register] = self.memory.read_u8(self.i + register as u16);
-        }
-    }
+    } 
 
     fn op_add_i_vx(&mut self, instruction: &Instruction) {
         self.i += self.registers[instruction.x()] as u16;
@@ -302,14 +344,29 @@ impl Cpu {
     }
 
     fn op_ld_b_vx(&mut self, instruction: &Instruction) {
-        let mut register = self.registers[instruction.x()];
+        let mut register: u8 = self.registers[instruction.x()];
         let ones: u8 = register % 10;
         register = register / 10;
-        let tens: u8 = register / 10;
+        let tens: u8 = register % 10;
+        register = register / 10;
         let hundreds: u8 = register % 10;
         self.memory.set_u8(self.i, hundreds);
         self.memory.set_u8(self.i + 1, tens);
         self.memory.set_u8(self.i + 2, ones);
     }
     
+    fn op_ld_i_vx(&mut self, instruction: &Instruction) {
+        for register in 0..(instruction.x() + 1) {
+            self.memory.set_u8(self.i + register as u16, self.registers[register]);
+        }
+        self.i = self.i + instruction.x() as u16 + 1;
+    }
+
+    fn op_ld_vx_i(&mut self, instruction: &Instruction) {
+        for register in 0..(instruction.x() + 1) {
+            self.registers[register] = self.memory.read_u8(self.i + register as u16);
+        }
+        self.i = self.i + instruction.x() as u16 + 1;
+    }
+
 }
