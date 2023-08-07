@@ -19,16 +19,9 @@ name = "chip_8"
 version = "0.1.0"
 dependencies = [
  "gl",
- "imgui-rs",
  "rand",
  "sdl2",
 ]
-
-[[package]]
-name = "gcc"
-version = "0.3.55"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
 
 [[package]]
 name = "getrandom"
@@ -59,16 +52,6 @@ dependencies = [
  "khronos_api",
  "log",
  "xml-rs",
-]
-
-[[package]]
-name = "imgui-rs"
-version = "1.47.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cdfae1c0d140aadd6bad9d0847e1d30cb0d5f9ec02e5d90562dbac84dd997d8"
-dependencies = [
- "gcc",
- "libc",
 ]
 
 [[package]]
