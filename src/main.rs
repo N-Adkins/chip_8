@@ -27,13 +27,15 @@ fn main() {
             cpu.renderer.audio.device.pause();
         }
 
-        for _ in 0..16 {
+        for _ in 0..20 {
             cpu.decode_next_instruction();
         }
 
+        cpu.drawn_this_frame = false;
+
         cpu.renderer.update_texture();
 
-        ::std::thread::sleep(std::time::Duration::from_millis(17))
+        ::std::thread::sleep(std::time::Duration::from_secs_f64(1.0/60.0))
 
     }
 

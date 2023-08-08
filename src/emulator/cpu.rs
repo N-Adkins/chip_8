@@ -22,6 +22,7 @@ pub struct Cpu {
     pub dt: u8,
     pub st: u8,
     i: u16,
+    pub drawn_this_frame: bool,
     rng: rand::rngs::ThreadRng,
     pause: Pause,
     memory: Memory,
@@ -38,6 +39,7 @@ impl Cpu {
             dt: 0,
             st: 0,
             i: 0,
+            drawn_this_frame: false,
             pause: Pause { active: false, down: false, down_key: 0, released: false, register: 0, },
             rng: rand::thread_rng(),
             memory: Memory::new(),
@@ -255,6 +257,13 @@ impl Cpu {
 
     fn op_drw_vx_vy_n(&mut self, instruction: &Instruction) {
         
+        if self.drawn_this_frame {
+            self.pc -= 2;
+            return;
+        }
+
+        self.drawn_this_frame = true;
+
         let coord_x = self.registers[instruction.x()] as u16;
         let coord_y = self.registers[instruction.y()] as u16;
         let height = instruction.n();
